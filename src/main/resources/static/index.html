@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat</title>
+</head>
+<body>
+<div id="chat-window">
+    <ul id="message-list"></ul>
+</div>
+<input type="text" id="message-input" placeholder="Type your message..."/>
+<button onclick="sendMessage()">Send</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script>
+    let stompClient = null;
+    function connect() {
+        const socket = new SockJS('/chat');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function () {
+            stompClient.subscribe('/topic/messages', function (messageOutput) {
+                showMessage(JSON.parse(messageOutput.body));
+            });
+        });
+    }
+
+    function sendMessage() {
+        const content = document.getElementById('message-input').value;
+        stompClient.send("/app/sendMessage", {}, JSON.stringify({'sender': 'User', 'content': content}));
+        document.getElementById('message-input').value = '';
+    }
+
+    function showMessage(message) {
+        const messageList = document.getElementById('message-list');
+        const messageElement = document.createElement('li');
+        messageElement.appendChild(document.createTextNode(`${message.sender}: ${message.content}`));
+        messageList.appendChild(messageElement);
+    }
+
+    connect();
+</script>
+</body>
+</html>
