@@ -12,8 +12,10 @@
 <input type="text" id="message-input" placeholder="Type your message..."/>
 <button onclick="sendMessage()">Send</button>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<!-- Load SockJS and Stomp.js from WebJars -->
+<script src="/webjars/sockjs-client/1.5.1/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/2.3.3/stomp.min.js"></script>
+
 <script>
     let stompClient = null;
     function connect() {
