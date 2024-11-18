@@ -1,0 +1,42 @@
+/* custom.css */
+
+/* Chat Window */
+.chat-window {
+    @apply w-full max-w-lg bg-white rounded-lg shadow-lg p-6;
+}
+
+/* Chat Header */
+.chat-header {
+    @apply text-center text-2xl font-semibold mb-4 text-gray-700;
+}
+
+/* Message List */
+.message-list {
+    @apply h-64 overflow-y-auto mb-4 border-b border-gray-200 p-4 rounded-lg;
+}
+
+/* Message Item */
+.message-item {
+    @apply flex items-center space-x-2;
+}
+
+.message-sender {
+    @apply font-semibold text-blue-500;
+}
+
+.message-content {
+    @apply text-gray-800;
+}
+
+/* Input Area */
+.input-area {
+    @apply flex items-center space-x-2;
+}
+
+.input-field {
+    @apply flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.send-button {
+    @apply px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
