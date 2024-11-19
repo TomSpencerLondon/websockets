@@ -59,6 +59,12 @@
             <version>2.3.3</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -76,6 +82,8 @@
                         <id>install node and npm</id>
                         <goals>
                             <goal>install-node-and-npm</goal>
+                            <goal>npm</goal>
+                            <goal>npm</goal>
                         </goals>
                         <configuration>
                             <nodeVersion>v18.0.0</nodeVersion>
@@ -93,13 +101,13 @@
                         </configuration>
                     </execution>
                     <execution>
-                        <id>npm run build:tailwind</id>
+                        <id>npm run build:css</id>
                         <goals>
                             <goal>npm</goal>
                         </goals>
                         <phase>generate-resources</phase>
                         <configuration>
-                            <arguments>run build:tailwind</arguments>
+                            <arguments>run build:css</arguments>
                         </configuration>
                     </execution>
                 </executions>

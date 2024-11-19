@@ -1,4 +1,5 @@
 package com.example.demo.config;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -11,13 +12,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
-        config.setApplicationDestinationPrefixes("/app");
+        // Enable a simple in-memory message broker for proposals and votes
+        config.enableSimpleBroker("/topic/proposals", "/topic/votes"); // Separate destinations for proposals and votes
+        config.setApplicationDestinationPrefixes("/app"); // Prefix for messages sent from the client to the server
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/chat")
-                .withSockJS();
+        // Register the WebSocket endpoint for proposals
+        registry.addEndpoint("/proposal")
+                .withSockJS(); // WebSocket for proposals
+
+        // Register a separate WebSocket endpoint for voting
+        registry.addEndpoint("/vote")
+                .withSockJS(); // WebSocket for votes
     }
 }

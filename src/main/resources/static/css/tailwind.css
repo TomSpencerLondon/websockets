@@ -1,6 +1,6 @@
 /* tailwind.css */
-@import "tailwindcss/base";
-@import './custom.css';
+@import "../../../../../node_modules/tailwindcss/base.css";
+@import 'custom.css';
 @tailwind components;
 @tailwind utilities;
 

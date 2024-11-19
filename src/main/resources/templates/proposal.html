@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Proposal & Voting</title>
+    <script th:src="@{/webjars/sockjs-client/1.5.1/sockjs.min.js}"></script>
+    <script th:src="@{/webjars/stomp-websocket/2.3.3/stomp.min.js}"></script>
+    <link href="/css/output.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+<div class="flex justify-center items-center h-screen">
+    <div class="chat-window w-full max-w-xl">
+        <div class="chat-header text-center text-xl font-bold p-4 bg-gray-300">
+            WebSocket Proposal & Voting
+        </div>
+
+        <!-- Proposal Submission -->
+        <div class="proposal-section p-4">
+            <input type="text" id="proposal-input" placeholder="Submit your proposal..." class="input-field w-full p-2 border border-gray-300 rounded mb-2" />
+            <button id="submit-proposal" class="send-button w-full p-2 bg-blue-500 text-white rounded">Submit Proposal</button>
+        </div>
+
+        <!-- Proposals and Voting Section -->
+        <div class="proposal-vote-section mt-6 p-4">
+            <h3 class="font-semibold text-lg">Proposals</h3>
+            <ul id="proposal-list" class="space-y-2">
+                <!-- Iterate over proposals dynamically -->
+                <li th:each="proposal : ${proposals}"
+                    class="message-item flex justify-between items-center p-2 border-b border-gray-300"
+                    th:data-proposal-id="${proposal.id}">
+
+                    <!-- Proposal details -->
+                    <div>
+                        <span class="font-semibold text-blue-500" th:text="${proposal.sender}"></span>:
+                        <span class="text-gray-800" th:text="${proposal.content}"></span>
+                        <span class="text-gray-500 italic">(ID: <span th:text="${proposal.id}"></span>)</span>
+                    </div>
+
+                    <!-- Vote count -->
+                    <span class="ml-4 text-sm text-gray-700"
+                          th:id="'vote-count-' + ${proposal.id}"
+                          th:text="'Votes: ' + ${proposal.voteCount}"></span>
+
+                    <!-- Vote button -->
+                    <button class="ml-4 bg-green-500 text-white px-2 py-1 rounded"
+                            th:onclick="'sendVote(' + ${proposal.id} + ')'">
+                        Vote Yes
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<script th:src="@{/js/websocket-client.js}"></script>
+
+</body>
+</html>
