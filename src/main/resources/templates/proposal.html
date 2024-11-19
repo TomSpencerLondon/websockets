@@ -40,6 +40,7 @@
 
                     <!-- Vote count -->
                     <span class="ml-4 text-sm text-gray-700"
+                          th:data-vote-count="${proposal.voteCount}"
                           th:id="'vote-count-' + ${proposal.id}"
                           th:text="'Votes: ' + ${proposal.voteCount}"></span>
 

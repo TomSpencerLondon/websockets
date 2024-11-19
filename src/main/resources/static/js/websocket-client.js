@@ -33,7 +33,7 @@ function sendProposal() {
             'content': content,
             'voteCount': 0
         }));
-        inputElement.value = ''; // Clear the input field
+        inputElement.value = '';
     }
 }
 
@@ -65,6 +65,7 @@ function showProposal(proposal) {
     const voteCountSpan = document.createElement('span');
     voteCountSpan.id = `vote-count-${proposal.id}`;
     voteCountSpan.classList.add('ml-4', 'text-sm', 'text-gray-700');
+    voteCountSpan.setAttribute('data-vote-count', `${proposal.voteCount || 0}`);
     voteCountSpan.textContent = `Votes: ${proposal.voteCount || 0}`;
 
     // Vote button
@@ -84,10 +85,15 @@ function showProposal(proposal) {
 function updateVoteCount(vote) {
     const voteCountElement = document.getElementById(`vote-count-${vote.id}`);
     if (voteCountElement) {
-        const currentCount = parseInt(voteCountElement.textContent.replace('Votes: ', ''), 10) || 0;
-        voteCountElement.textContent = `Votes: ${currentCount + 1}`; // Simply increment vote count
+        const currentCount = parseInt(voteCountElement.getAttribute('data-vote-count'), 10) || 0;
+        const updatedCount = currentCount + 1;
+
+        voteCountElement.setAttribute('data-vote-count', updatedCount);
+
+        voteCountElement.textContent = `Votes: ${updatedCount}`;
     }
 }
+
 
 // Event listeners for proposal submission
 function addEventListeners() {

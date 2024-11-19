@@ -25,7 +25,7 @@ public class ProposalController {
 
     @GetMapping("/proposal")
     public String proposalPage(Model model) {
-        List<Proposal> proposalList = proposalService.getAllProposals();
+        List<Proposal> proposalList = proposalService.proposals();
         model.addAttribute("proposals", proposalList); // Pass the list of proposals to Thymeleaf
         return "proposal";
     }
