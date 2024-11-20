@@ -107,7 +107,7 @@ jobs:
             --service-name ${{ secrets.ECS_SERVICE_NAME }} \
             --query "taskArns[0]" \
             --output text)
-          
+
           if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
             echo "No tasks found or task ARN is invalid"
             exit 1
@@ -117,6 +117,28 @@ jobs:
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --tasks $TASK_ARN \
             --query "tasks[0].lastStatus, tasks[0].stoppedReason, tasks[0].containers" \
+            --output table
+
+      # Debug: Fetch CloudWatch Logs (Optional)
+      - name: Fetch CloudWatch Logs for ECS Task
+        run: |
+          LOG_GROUP_NAME="/aws/ecs/${{ secrets.ECS_CLUSTER }}/${{ secrets.ECS_SERVICE_NAME }}"
+          aws logs describe-log-streams \
+            --log-group-name $LOG_GROUP_NAME \
+            --query "logStreams[0].logStreamName" \
+            --output text > log_stream.txt
+          
+          LOG_STREAM=$(cat log_stream.txt)
+          
+          if [ -z "$LOG_STREAM" ]; then
+            echo "No log stream found"
+            exit 1
+          fi
+
+          aws logs get-log-events \
+            --log-group-name $LOG_GROUP_NAME \
+            --log-stream-name $LOG_STREAM \
+            --limit 50 \
             --output table
 
       # Get ECS Task Public IP
