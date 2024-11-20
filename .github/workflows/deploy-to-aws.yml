@@ -1,16 +1,11 @@
+name: Deploy to AWS
+
 on:
-  workflow_dispatch:
-    inputs:
-      teardown:
-        description: "Set to 'true' to tear down ECS service after deployment"
-        required: false
-        default: 'false'
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
-  # Job for full deployment
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    if: ${{ inputs.teardown != 'true' }}  # Run this job only if teardown is false
 
     steps:
       - name: Checkout code
@@ -24,9 +19,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Build Docker image with Docker Compose
+      - name: Set up Docker Compose
         run: |
           sudo apt-get install docker-compose
+
+      - name: Build Docker image with Docker Compose
+        run: |
           docker-compose -f docker-compose.yml build spring-boot-app
           docker images
 
@@ -62,7 +60,15 @@ jobs:
                     "hostPort": 8080,
                     "protocol": "tcp"
                   }
-                ]
+                ],
+                "logConfiguration": {
+                  "logDriver": "awslogs",
+                  "options": {
+                    "awslogs-group": "/aws/ecs/spring-websockets",
+                    "awslogs-region": "${{ secrets.AWS_REGION }}",
+                    "awslogs-stream-prefix": "ecs"
+                  }
+                }
               }
             ],
             "requiresCompatibilities": ["FARGATE"],
@@ -75,14 +81,6 @@ jobs:
           echo "$TASK_DEFINITION_JSON" > task-def.json
           aws ecs register-task-definition --cli-input-json file://task-def.json
 
-      # Step to scale down the ECS service (terminate running tasks)
-      - name: Scale down ECS service to 0 tasks
-        run: |
-          aws ecs update-service \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service ${{ secrets.ECS_SERVICE_NAME }} \
-            --desired-count 0
-
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
@@ -90,102 +88,51 @@ jobs:
             --service ${{ secrets.ECS_SERVICE_NAME }} \
             --force-new-deployment
 
-      # Debug: Fetch CloudWatch Logs (Optional)
-      - name: Fetch CloudWatch Logs for ECS Task
-        run: |
-          LOG_GROUP_NAME="/aws/ecs/${{ secrets.ECS_CLUSTER }}/${{ secrets.ECS_SERVICE_NAME }}"
-          aws logs describe-log-streams \
-            --log-group-name $LOG_GROUP_NAME \
-            --query "logStreams[0].logStreamName" \
-            --output text > log_stream.txt
-          
-          LOG_STREAM=$(cat log_stream.txt)
-          
-          if [ -z "$LOG_STREAM" ]; then
-            echo "No log stream found"
-            exit 1
-          fi
-
-          aws logs get-log-events \
-            --log-group-name $LOG_GROUP_NAME \
-            --log-stream-name $LOG_STREAM \
-            --limit 50 \
-            --output table
-
-      # Debug: Get ECS Service Events
-      - name: Get ECS Service Events
-        run: |
-          aws ecs describe-services \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE_NAME }} \
-            --query "services[0].events" \
-            --output table
-
-      # Debug: Describe ECS Tasks (to get any error details)
-      - name: Describe ECS Tasks
-        run: |
-          TASK_ARN=$(aws ecs list-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service-name ${{ secrets.ECS_SERVICE_NAME }} \
-            --query "taskArns[0]" \
-            --output text)
-
-          if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
-            echo "No tasks found or task ARN is invalid"
-            exit 1
-          fi
-
-          aws ecs describe-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --tasks $TASK_ARN \
-            --query "tasks[0].lastStatus, tasks[0].stoppedReason, tasks[0].containers" \
-            --output table
-
-      # Get ECS Task Public IP
       - name: Get ECS Task Public IP
         run: |
+          # Get the task ARN
           TASK_ARN=$(aws ecs list-tasks \
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --service-name ${{ secrets.ECS_SERVICE_NAME }} \
             --query "taskArns[0]" \
             --output text)
 
+          # Check if a valid task ARN was found
           if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
             echo "No tasks found or task ARN is invalid"
             exit 1
           fi
 
+          # Get the network interface ID associated with the task
           NETWORK_INTERFACE_ID=$(aws ecs describe-tasks \
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --tasks $TASK_ARN \
             --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
             --output text)
 
+          # Check if a valid network interface ID was found
           if [ "$NETWORK_INTERFACE_ID" == "None" ] || [ -z "$NETWORK_INTERFACE_ID" ]; then
             echo "No network interface found for task"
             exit 1
           fi
 
+          # Get the Public IP address associated with the network interface
           PUBLIC_IP=$(aws ec2 describe-network-interfaces \
             --network-interface-ids $NETWORK_INTERFACE_ID \
             --query "NetworkInterfaces[0].Association.PublicIp" \
             --output text)
 
+          # Check if a valid public IP was found
           if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
             echo "No public IP found for the task"
             exit 1
           fi
 
+          # Display the Public IP address
           echo "Your application is running at: http://$PUBLIC_IP:8080"
 
-  # Job for tearing down the ECS service (after deployment)
-  teardown:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.teardown == 'true' }}  # Run this job only if teardown is true
-    needs: deploy  # Ensure the deploy job runs first, although it might be skipped.
-
-    steps:
-      - name: Tear Down ECS Service
+      - name: Tear Down ECS Service (Optional)
+        if: github.event.inputs.teardown == 'true'
         run: |
           aws ecs update-service \
             --cluster ${{ secrets.ECS_CLUSTER }} \
