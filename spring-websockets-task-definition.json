@@ -22,7 +22,7 @@
         "logDriver": "awslogs",
         "options": {
           "awslogs-create-group": "true",
-          "awslogs-group": "/aws/ecs/spring-websockets",
+          "awslogs-group": "/ecs/spring-websockets",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
