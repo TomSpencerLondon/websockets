@@ -1,0 +1,89 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get install docker-compose
+
+      - name: Build Docker image with Docker Compose
+        run: |
+          docker-compose -f docker-compose.yml build spring-boot-app
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Tag Docker image for ECR
+        run: |
+          IMAGE_TAG="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"
+          docker tag spring-boot-app:latest $IMAGE_TAG
+
+      - name: Push Docker image to Amazon ECR
+        run: |
+          IMAGE_TAG="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"
+          docker push $IMAGE_TAG
+
+      - name: Register ECS Task Definition
+        run: |
+          TASK_DEFINITION_JSON=$(cat <<EOF
+          {
+            "family": "${{ secrets.TASK_DEFINITION_NAME }}",
+            "networkMode": "awsvpc",
+            "containerDefinitions": [
+              {
+                "name": "spring-container",
+                "image": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest",
+                "memory": 512,
+                "cpu": 256,
+                "essential": true,
+                "portMappings": [
+                  {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                  }
+                ]
+              }
+            ],
+            "requiresCompatibilities": ["FARGATE"],
+            "cpu": "256",
+            "memory": "512"
+          }
+          EOF
+          )
+          echo "$TASK_DEFINITION_JSON" > task-def.json
+          aws ecs register-task-definition --cli-input-json file://task-def.json
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE_NAME }} \
+            --force-new-deployment
+
+      - name: Get ECS Task Public IP
+        run: |
+          PUBLIC_IP=$(aws ecs describe-tasks \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --tasks $(aws ecs list-tasks --cluster ${{ secrets.ECS_CLUSTER }} --service-name ${{ secrets.ECS_SERVICE_NAME }} --query "taskArns[0]" --output text) \
+            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text | xargs -I {} aws ec2 describe-network-interfaces --network-interface-ids {} --query "NetworkInterfaces[0].Association.PublicIp" --output text)
+          
+          # Display the Public IP address
+          echo "Your application is running at: http://$PUBLIC_IP:8080"
+
+      - name: Tear Down ECS Service (Optional)
+        if: github.event.inputs.teardown == 'true'
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE_NAME }} \
+            --desired-count 0
