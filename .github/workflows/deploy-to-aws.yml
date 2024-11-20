@@ -57,8 +57,8 @@ jobs:
               {
                 "name": "spring-container",
                 "image": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest",
-                "memory": 1024,  # Increased to 1 GiB
-                "cpu": 512,  # Increased to 0.5 vCPU
+                "memory": 1024,
+                "cpu": 512,
                 "essential": true,
                 "portMappings": [
                   {
@@ -78,8 +78,8 @@ jobs:
               }
             ],
             "requiresCompatibilities": ["FARGATE"],
-            "cpu": "512",  # Increased to 0.5 vCPU
-            "memory": "1024",  # Increased to 1 GiB
+            "cpu": "512",
+            "memory": "1024",
             "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsWebsocketsECSTaskExecution"
           }
           EOF
