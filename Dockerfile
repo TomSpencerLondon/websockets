@@ -1,4 +1,4 @@
-FROM ghcr.io/graalvm/graalvm-ce:21.3.0-java21-alpine
+FROM ghcr.io/graalvm/graalvm-ce:latest:ol8-java11-21.2.0
 WORKDIR /app
 COPY target/spring-websockets.jar spring-websockets.jar
 
