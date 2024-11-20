@@ -51,11 +51,11 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # Conditionally destroy if the action is 'destroy'
-      - name: Terminate Elastic Beanstalk Environment
+      - name: Terminate Elastic Beanstalk Application
         if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
-          aws elasticbeanstalk terminate-environment --environment-name websockets-spring-env --region us-east-1
-          echo "Elastic Beanstalk environment 'websockets-spring-env' has been terminated."
+          aws elasticbeanstalk delete-application --application-name websockets-spring-app --region us-east-1
+          echo "Elastic Beanstalk application 'websockets-spring-app' has been terminated."
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
