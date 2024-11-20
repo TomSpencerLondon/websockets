@@ -36,7 +36,7 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           application_name: 'websockets-spring-app'
-          environment_name: 'websockets-spring-env'
+          environment_name: 'Websockets-spring-app-env'
           version_label: ${{ github.sha }}
           region: us-east-1
           deployment_package: target/spring-websockets.jar
@@ -44,7 +44,7 @@ jobs:
       - name: Get Elastic Beanstalk Environment URL
         if: ${{ github.event.inputs.action == 'deploy' }}
         run: |
-          EB_URL=$(aws elasticbeanstalk describe-environments --application-name websockets-spring --environment-names websockets-spring-env --region us-east-1 --query "Environments[0].CNAME" --output text)
+          EB_URL=$(aws elasticbeanstalk describe-environments --application-name websockets-spring --environment-names Websockets-spring-app-env --region us-east-1 --query "Environments[0].CNAME" --output text)
           echo "Elastic Beanstalk application URL: http://$EB_URL"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
