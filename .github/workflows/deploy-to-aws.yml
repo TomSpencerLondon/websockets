@@ -87,15 +87,16 @@ jobs:
           echo "$TASK_DEFINITION_JSON" > task-def.json
           aws ecs register-task-definition --cli-input-json file://task-def.json
 
-      - name: Deploy to ECS
+      - name: Force New ECS Deployment
         run: |
           aws ecs update-service \
             --cluster ${{ secrets.ECS_CLUSTER }} \
             --service ${{ secrets.ECS_SERVICE_NAME }} \
             --force-new-deployment
-      - name: Fetch CloudWatch Logs for ECS Task
+
+      - name: Check CloudWatch Logs Configuration
         run: |
-          LOG_GROUP_NAME="/aws/ecs/${{ secrets.ECS_CLUSTER }}/${{ secrets.ECS_SERVICE_NAME }}"
+          LOG_GROUP_NAME="/aws/ecs/spring-websockets"
           aws logs describe-log-streams \
             --log-group-name $LOG_GROUP_NAME \
             --query "logStreams[0].logStreamName" \
@@ -104,7 +105,7 @@ jobs:
           LOG_STREAM=$(cat log_stream.txt)
           
           if [ -z "$LOG_STREAM" ]; then
-            echo "No log stream found"
+            echo "No log stream found in CloudWatch, verifying ECS task logs..."
             exit 1
           fi
 
@@ -113,6 +114,16 @@ jobs:
             --log-stream-name $LOG_STREAM \
             --limit 50 \
             --output table
+
+      - name: Verify ECS Task Permissions
+        run: |
+          echo "Checking permissions for ECS tasks to write to CloudWatch..."
+          # Example of validating permissions by testing if ECS Task Role allows logs to CloudWatch
+          aws iam simulate-principal-policy \
+            --policy-source-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsWebsocketsECSTaskExecution \
+            --action-name logs:PutLogEvents \
+            --resource-arn arn:aws:logs:${{ secrets.AWS_REGION }}:*:* \
+            --query "EvaluationResults[0].EvalDecision"
 
       - name: Get ECS Service Events
         run: |
