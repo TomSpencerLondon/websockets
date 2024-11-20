@@ -56,5 +56,5 @@ jobs:
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: spring-websockets-service
-          cluster: DevCluster2
+          cluster: spring-websockets
           wait-for-service-stability: true
