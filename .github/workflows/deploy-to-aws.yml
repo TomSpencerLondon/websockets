@@ -82,11 +82,44 @@ jobs:
 
       - name: Get ECS Task Public IP
         run: |
-          PUBLIC_IP=$(aws ecs describe-tasks \
+          # Get the task ARN
+          TASK_ARN=$(aws ecs list-tasks \
             --cluster ${{ secrets.ECS_CLUSTER }} \
-            --tasks $(aws ecs list-tasks --cluster ${{ secrets.ECS_CLUSTER }} --service-name ${{ secrets.ECS_SERVICE_NAME }} --query "taskArns[0]" --output text) \
-            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text | xargs -I {} aws ec2 describe-network-interfaces --network-interface-ids {} --query "NetworkInterfaces[0].Association.PublicIp" --output text)
-          
+            --service-name ${{ secrets.ECS_SERVICE_NAME }} \
+            --query "taskArns[0]" \
+            --output text)
+
+          # Check if a valid task ARN was found
+          if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
+            echo "No tasks found or task ARN is invalid"
+            exit 1
+          fi
+
+          # Get the network interface ID associated with the task
+          NETWORK_INTERFACE_ID=$(aws ecs describe-tasks \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
+            --output text)
+
+          # Check if a valid network interface ID was found
+          if [ "$NETWORK_INTERFACE_ID" == "None" ] || [ -z "$NETWORK_INTERFACE_ID" ]; then
+            echo "No network interface found for task"
+            exit 1
+          fi
+
+          # Get the Public IP address associated with the network interface
+          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
+            --network-interface-ids $NETWORK_INTERFACE_ID \
+            --query "NetworkInterfaces[0].Association.PublicIp" \
+            --output text)
+
+          # Check if a valid public IP was found
+          if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
+            echo "No public IP found for the task"
+            exit 1
+          fi
+
           # Display the Public IP address
           echo "Your application is running at: http://$PUBLIC_IP:8080"
 
