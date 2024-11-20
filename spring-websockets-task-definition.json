@@ -2,8 +2,8 @@
   "taskDefinitionArn": "arn:aws:ecs:us-east-1:706054169063:task-definition/spring-websockets:1",
   "containerDefinitions": [
     {
-      "name": "spring-container",
-      "image": "706054169063.dkr.ecr.us-east-1.amazonaws.com/my-spring-websocket-repo:latest",
+      "name": "spring-websockets",
+      "image": "706054169063.dkr.ecr.us-east-1.amazonaws.com/my-spring-websocket:latest",
       "cpu": 0,
       "portMappings": [
         {
