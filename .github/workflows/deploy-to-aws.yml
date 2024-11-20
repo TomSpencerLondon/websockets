@@ -26,6 +26,7 @@ jobs:
       - name: Build Docker image with Docker Compose
         run: |
           docker-compose -f docker-compose.yml build spring-boot-app
+          docker images
 
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
