@@ -1,7 +1,6 @@
 name: Deploy to AWS ECS
 on:
-  push:
-    branches: [ deploy-to-ecs ]
+  workflow_dispatch:
 jobs:
   build-and-deploy:
     runs-on: [ ubuntu-latest ]
