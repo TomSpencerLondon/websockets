@@ -1,0 +1,61 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose action: deploy or destroy the Elastic Beanstalk environment'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build Project
+        run: mvn clean install -DskipTests
+
+      # Conditionally deploy if the action is 'deploy'
+      - name: Deploy to EB
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: 'websockets-spring'
+          environment_name: 'websockets-spring-env'
+          version_label: ${{ github.sha }}
+          region: us-east-1
+          deployment_package: target/spring-websockets.jar
+
+      - name: Get Elastic Beanstalk Environment URL
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        run: |
+          EB_URL=$(aws elasticbeanstalk describe-environments --application-name websockets-spring --environment-names websockets-spring-env --region us-east-1 --query "Environments[0].CNAME" --output text)
+          echo "Elastic Beanstalk application URL: http://$EB_URL"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Conditionally destroy if the action is 'destroy'
+      - name: Terminate Elastic Beanstalk Environment
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        run: |
+          aws elasticbeanstalk terminate-environment --environment-name websockets-spring-env --region us-east-1
+          echo "Elastic Beanstalk environment 'websockets-spring-env' has been terminated."
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
