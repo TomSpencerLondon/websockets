@@ -130,20 +130,6 @@ jobs:
 
           echo "Your application is running at: http://$PUBLIC_IP:8080"
 
-  # Job for tearing down the ECS service (after deployment)
-  teardown:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.teardown == 'true' }}  # Run this job only if teardown is true
-    needs: deploy  # Ensure the deploy job runs first, although it might be skipped.
-
-    steps:
-      - name: Tear Down ECS Service
-        run: |
-          aws ecs update-service \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service ${{ secrets.ECS_SERVICE_NAME }} \
-            --desired-count 0
-
       - name: Fetch CloudWatch Logs for ECS Task
         run: |
           LOG_GROUP_NAME="/aws/ecs/${{ secrets.ECS_CLUSTER }}/${{ secrets.ECS_SERVICE_NAME }}"
@@ -191,3 +177,16 @@ jobs:
             --tasks $TASK_ARN \
             --query "tasks[0].lastStatus, tasks[0].stoppedReason, tasks[0].containers" \
             --output table
+
+  teardown:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.teardown == 'true' }}
+    needs: deploy
+
+    steps:
+      - name: Tear Down ECS Service
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE_NAME }} \
+            --desired-count 0
