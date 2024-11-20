@@ -65,7 +65,8 @@ jobs:
             ],
             "requiresCompatibilities": ["FARGATE"],
             "cpu": "256",
-            "memory": "512"
+            "memory": "512",
+            "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsWebsocketsECSTaskExecution"
           }
           EOF
           )
