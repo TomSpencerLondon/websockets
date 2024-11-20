@@ -1,17 +1,9 @@
-# Use Maven to build the application
-FROM maven:3.8.7-eclipse-temurin-17 AS build
-
+FROM ghcr.io/graalvm/graalvm-ce:21.3.0-java21-alpine
 WORKDIR /app
-COPY . .
+COPY target/spring-websockets.jar spring-websockets.jar
 
-# Run Maven to build the Spring Boot app
-RUN mvn clean install
+# Expose port 8080 for the application
+EXPOSE 8080
 
-# Use OpenJDK for the final image
-FROM openjdk:17-jdk-alpine
-
-WORKDIR /app
-COPY --from=build /app/target/*.jar spring-boot-app.jar
-
-# Run the Spring Boot app
-CMD ["java", "-jar", "spring-boot-app.jar"]
+# Run the Spring Boot application with GraalVM's java
+CMD ["java", "-jar", "spring-websockets.jar"]

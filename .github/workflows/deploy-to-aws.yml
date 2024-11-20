@@ -1,202 +1,61 @@
-name: Deploy to AWS
-
+name: Deploy to AWS ECS
 on:
-  workflow_dispatch:  # Allows manual triggering of the workflow
-    inputs:
-      teardown:
-        description: "Set to 'true' to tear down ECS service after deployment"
-        required: false
-        default: 'false'
-
+  push:
+    branches: [ deploy-to-ecs ]
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.teardown != 'true' }}  # Run this job only if teardown is false
-
+  build-and-deploy:
+    runs-on: [ ubuntu-latest ]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout source
+        uses: actions/checkout@v3
 
-      # Set up AWS credentials
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Setup Java 21
+        uses: actions/setup-java@v3
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          distribution: 'temurin'
+          java-version: '21'
+
+
+      - name: Build Project
+        run: mvn clean install -DskipTests
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Set up Docker Compose
-        run: |
-          sudo apt-get install docker-compose
-
-      - name: Build Docker image with Docker Compose
-        run: |
-          docker-compose -f docker-compose.yml build spring-boot-app
-          docker images
-
-      - name: Log in to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
 
-      - name: Tag Docker image for ECR
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          REPOSITORY: spring-websockets
         run: |
-          IMAGE_TAG="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"
-          docker tag spring-boot-app:latest $IMAGE_TAG
-
-      - name: Push Docker image to Amazon ECR
-        run: |
-          IMAGE_TAG="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest"
-          docker push $IMAGE_TAG
-
-      - name: Register ECS Task Definition
-        run: |
-          TASK_DEFINITION_JSON=$(cat <<EOF
-          {
-            "family": "${{ secrets.TASK_DEFINITION_NAME }}",
-            "networkMode": "awsvpc",
-            "containerDefinitions": [
-              {
-                "name": "spring-container",
-                "image": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest",
-                "memory": 1024,
-                "cpu": 512,
-                "essential": true,
-                "portMappings": [
-                  {
-                    "containerPort": 8080,
-                    "hostPort": 8080,
-                    "protocol": "tcp"
-                  }
-                ],
-                "logConfiguration": {
-                  "logDriver": "awslogs",
-                  "options": {
-                    "awslogs-group": "/aws/ecs/spring-websockets",
-                    "awslogs-region": "${{ secrets.AWS_REGION }}",
-                    "awslogs-stream-prefix": "ecs"
-                  }
-                }
-              }
-            ],
-            "requiresCompatibilities": ["FARGATE"],
-            "cpu": "512",
-            "memory": "1024",
-            "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsWebsocketsECSTaskExecution"
-          }
-          EOF
-          )
-          echo "$TASK_DEFINITION_JSON" > task-def.json
-          aws ecs register-task-definition --cli-input-json file://task-def.json
-
-      - name: Force New ECS Deployment
-        run: |
-          aws ecs update-service \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service ${{ secrets.ECS_SERVICE_NAME }} \
-            --force-new-deployment
-
-      - name: Check CloudWatch Logs Configuration
-        run: |
-          LOG_GROUP_NAME="/aws/ecs/spring-websockets"
-          aws logs describe-log-streams \
-            --log-group-name $LOG_GROUP_NAME \
-            --query "logStreams[0].logStreamName" \
-            --output text > log_stream.txt
-          
-          LOG_STREAM=$(cat log_stream.txt)
-          
-          if [ -z "$LOG_STREAM" ]; then
-            echo "No log stream found in CloudWatch, verifying ECS task logs..."
-            exit 1
-          fi
-
-          aws logs get-log-events \
-            --log-group-name $LOG_GROUP_NAME \
-            --log-stream-name $LOG_STREAM \
-            --limit 50 \
-            --output table
-
-      - name: Verify ECS Task Permissions
-        run: |
-          echo "Checking permissions for ECS tasks to write to CloudWatch..."
-          # Example of validating permissions by testing if ECS Task Role allows logs to CloudWatch
-          aws iam simulate-principal-policy \
-            --policy-source-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsWebsocketsECSTaskExecution \
-            --action-name logs:PutLogEvents \
-            --resource-arn arn:aws:logs:${{ secrets.AWS_REGION }}:*:* \
-            --query "EvaluationResults[0].EvalDecision"
-
-      - name: Get ECS Service Events
-        run: |
-          aws ecs describe-services \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --services ${{ secrets.ECS_SERVICE_NAME }} \
-            --query "services[0].events" \
-            --output table
-
-      - name: Describe ECS Tasks
-        run: |
-          TASK_ARN=$(aws ecs list-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service-name ${{ secrets.ECS_SERVICE_NAME }} \
-            --query "taskArns[0]" \
-            --output text)
-
-          if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
-            echo "No tasks found or task ARN is invalid"
-            exit 1
-          fi
-
-          aws ecs describe-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --tasks $TASK_ARN \
-            --query "tasks[0].lastStatus, tasks[0].stoppedReason, tasks[0].containers" \
-            --output table
-
-      - name: Get ECS Task Public IP
-        run: |
-          TASK_ARN=$(aws ecs list-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service-name ${{ secrets.ECS_SERVICE_NAME }} \
-            --query "taskArns[0]" \
-            --output text)
-
-          if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
-            echo "No tasks found or task ARN is invalid"
-            exit 1
-          fi
-
-          NETWORK_INTERFACE_ID=$(aws ecs describe-tasks \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --tasks $TASK_ARN \
-            --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" \
-            --output text)
-
-          if [ "$NETWORK_INTERFACE_ID" == "None" ] || [ -z "$NETWORK_INTERFACE_ID" ]; then
-            echo "No network interface found for task"
-            exit 1
-          fi
-
-          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
-            --network-interface-ids $NETWORK_INTERFACE_ID \
-            --query "NetworkInterfaces[0].Association.PublicIp" \
-            --output text)
-
-          if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
-            echo "No public IP found for the task"
-            exit 1
-          fi
-
-          echo "Your application is running at: http://$PUBLIC_IP:8080"
-
-  teardown:
-    runs-on: ubuntu-latest
-    if: ${{ inputs.teardown == 'true' }}
-    needs: deploy
-
-    steps:
-      - name: Tear Down ECS Service
-        run: |
-          aws ecs update-service \
-            --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service ${{ secrets.ECS_SERVICE_NAME }} \
-            --desired-count 0
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: spring-websockets-task-definition.json
+          container-name: spring-websockets
+          image: ${{ steps.build-image.outputs.image }}
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: spring-websockets-service
+          cluster: DevCluster2
+          wait-for-service-stability: true
