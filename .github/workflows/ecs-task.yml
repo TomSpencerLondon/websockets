@@ -77,7 +77,7 @@ jobs:
           service: spring-websockets-service
           cluster: spring-websockets
           wait-for-service-stability: true
-          run-task: true
+          run-task: false
 
   destroy:
     if: ${{ github.event.inputs.action == 'destroy' }}
