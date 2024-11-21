@@ -67,7 +67,7 @@ jobs:
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: .github/workflows/task-definition.json
-          container-name: spring-websockets
+          container-name: spring-websockets-container-8080-tcp
           image: ${{ steps.build-image.outputs.image }}
 
       - name: Run ECS Cluster Task
