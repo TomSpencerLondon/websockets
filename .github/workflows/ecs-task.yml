@@ -107,8 +107,8 @@ jobs:
       - name: Scale Web App to zero
         uses: zachelrath/github-action-ecs-scale@1.2.0
         with:
-          service: ${{ vars.ECS_WEB_APP_SERVICE_NAME }}
-          cluster: ${{ vars.ECS_CLUSTER_NAME }}
+          service: spring-websockets-service
+          cluster: spring-websockets
           desired-count: 0
 
   scale_to_one:
