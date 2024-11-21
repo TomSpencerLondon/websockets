@@ -1,0 +1,81 @@
+name: Deploy Spring Application to ECS Cluster
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose action: deploy or destroy the ECS task'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+jobs:
+  deploy:
+    if: ${{ github.event.inputs.action == 'deploy' }}
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+      ECS_TASK_DEFINITION_NAME: ${{ secrets.ECS_TASK_DEFINITION_NAME }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      DOCKER_REPOSITORY: tomspencerlondon/spring-websockets
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build the application
+        run: |
+          ./mvnw clean package -DskipTests
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t $DOCKER_REPOSITORY:$IMAGE_TAG .
+          docker push $DOCKER_REPOSITORY:$IMAGE_TAG
+
+      - name: Run ECS Cluster Task
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          aws-access-key-id: $AWS_ACCESS_KEY_ID
+          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
+          aws-region: $AWS_REGION
+          cluster: $ECS_CLUSTER
+          task-definition: $ECS_TASK_DEFINITION_NAME
+          image: $DOCKER_REPOSITORY:$IMAGE_TAG
+          wait-for-service-stability: true
+
+  destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+
+    steps:
+      - name: Stop running tasks
+        run: |
+          aws ecs list-tasks --cluster $ECS_CLUSTER \
+            --query "taskArns[]" \
+            --output text | xargs -n 1 -t aws ecs stop-task --cluster $ECS_CLUSTER --task
