@@ -38,6 +38,7 @@
     "family": "spring-websockets",
     "taskRoleArn": "arn:aws:iam::706054169063:role/ecsTaskExecutionRole",
     "executionRoleArn": "arn:aws:iam::706054169063:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
     "revision": 2,
     "volumes": [],
     "status": "ACTIVE",
