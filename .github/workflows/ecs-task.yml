@@ -74,10 +74,10 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: spring-websockets-service
           cluster: spring-websockets
           wait-for-service-stability: true
           run-task: true
-          wait-for-task-stopped: true
 
   destroy:
     if: ${{ github.event.inputs.action == 'destroy' }}
