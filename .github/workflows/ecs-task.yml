@@ -10,7 +10,8 @@ on:
         type: choice
         options:
           - deploy
-          - destroy
+          - one
+          - zero
 
 jobs:
   deploy:
@@ -79,19 +80,40 @@ jobs:
           wait-for-service-stability: true
           run-task: false
 
-  destroy:
-    if: ${{ github.event.inputs.action == 'destroy' }}
+  scale_to_zero:
+    if: ${{ github.event.inputs.action == 'zero' }}
     runs-on: ubuntu-latest
 
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Scale Web App to zero
+        uses: zachelrath/github-action-ecs-scale@1.2.0
+        with:
+          service: ${{ vars.ECS_WEB_APP_SERVICE_NAME }}
+          cluster: ${{ vars.ECS_CLUSTER_NAME }}
+          desired-count: 0
+
+  scale_to_one:
+    if: ${{ github.event.inputs.action == 'one' }}
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Stop running tasks
-        run: |
-          aws ecs list-tasks --cluster $ECS_CLUSTER \
-            --query "taskArns[]" \
-            --output text | xargs -n 1 -t aws ecs stop-task --cluster $ECS_CLUSTER --task
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Scale Worker task to one
+        uses: zachelrath/github-action-ecs-scale@1.2.0
+        with:
+          service: spring-websockets-service
+          cluster: spring-websockets
+          desired-count: 1
