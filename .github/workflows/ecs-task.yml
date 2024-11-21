@@ -73,11 +73,11 @@ jobs:
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
-          cluster: spring-websockets
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          image: ${{ steps.build-image.outputs.image }}
-          run-task: true
+          cluster: spring-websockets
           wait-for-service-stability: true
+          run-task: true
+          wait-for-task-stopped: true
 
   destroy:
     if: ${{ github.event.inputs.action == 'destroy' }}
