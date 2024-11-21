@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Choose action: deploy or destroy the ECS task'
+        description: 'Choose action: deploy, scale to one, or scale to zero'
         required: true
         default: 'deploy'
         type: choice
@@ -80,6 +80,27 @@ jobs:
           wait-for-service-stability: true
           run-task: false
 
+      - name: Get Public IP of the Deployed ECS Task
+        run: |
+          # Get the task ID of the running task
+          TASK_ID=$(aws ecs list-tasks --cluster ${{ secrets.ECS_CLUSTER }} --service-name spring-websockets-service --desired-status RUNNING --query "taskArns[0]" --output text)
+          if [ "$TASK_ID" == "None" ]; then
+            echo "No running tasks found."
+            exit 1
+          fi
+          echo "Task ID: $TASK_ID"
+
+          PUBLIC_IP=$(aws ecs describe-tasks --cluster ${{ secrets.ECS_CLUSTER }} --tasks $TASK_ID --query "tasks[0].attachments[0].details[?name=='publicIp'].value" --output text)
+          
+          if [ "$PUBLIC_IP" == "None" ]; then
+            echo "No public IP found for the ECS task."
+            exit 1
+          fi
+          echo "Public IP: $PUBLIC_IP"
+
+          PUBLIC_IP_WITH_PORT="$PUBLIC_IP:8080"
+          echo "The public IP of the deployed ECS task is: $PUBLIC_IP_WITH_PORT"
+
   scale_to_zero:
     if: ${{ github.event.inputs.action == 'zero' }}
     runs-on: ubuntu-latest
@@ -94,7 +115,6 @@ jobs:
       DOCKER_REPOSITORY: tomspencerlondon/spring-websockets
       IMAGE_TAG: ${{ github.sha }}
       TASK_DEFINITION_FILE: "${{ secrets.ECS_TASK_DEFINITION_NAME }}.json"
-
 
     steps:
       - name: Configure AWS credentials
