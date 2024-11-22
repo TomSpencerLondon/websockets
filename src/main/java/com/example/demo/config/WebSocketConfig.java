@@ -22,9 +22,5 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Register the WebSocket endpoint for proposals
         registry.addEndpoint("/proposal")
                 .withSockJS(); // WebSocket for proposals
-
-        // Register a separate WebSocket endpoint for voting
-        registry.addEndpoint("/vote")
-                .withSockJS(); // WebSocket for votes
     }
 }
