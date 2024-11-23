@@ -1,7 +1,6 @@
 let stompClient = null;
 let socket = null;
 
-// Connect to the WebSocket server
 function connect() {
     socket = new SockJS('/proposal');
     stompClient = Stomp.over(socket);
@@ -63,7 +62,7 @@ function showProposal(proposal) {
 
     // Vote count display
     const voteCountSpan = document.createElement('span');
-    voteCountSpan.id = `vote-count-${proposal.id}`;
+    voteCountSpan.id = `vote-count-for-proposal-${proposal.id}`;
     voteCountSpan.classList.add('ml-4', 'text-sm', 'text-gray-700');
     voteCountSpan.setAttribute('data-vote-count', `${proposal.voteCount || 0}`);
     voteCountSpan.textContent = `Votes: ${proposal.voteCount || 0}`;
@@ -72,6 +71,7 @@ function showProposal(proposal) {
     const voteButton = document.createElement('button');
     voteButton.textContent = 'Vote Yes';
     voteButton.classList.add('ml-4', 'bg-green-500', 'text-white', 'px-2', 'py-1', 'rounded');
+    voteButton.id = `vote-button-for-proposal-${proposal.id}`;
     voteButton.onclick = () => sendVote(proposal.id);
 
     // Append elements
@@ -82,8 +82,8 @@ function showProposal(proposal) {
 }
 
 // Update vote count in real-time
-function updateVoteCount(vote) {
-    const voteCountElement = document.getElementById(`vote-count-${vote.id}`);
+function updateVoteCount(proposal) {
+    const voteCountElement = document.getElementById(`vote-count-for-proposal-${proposal.id}`);
     if (voteCountElement) {
         const currentCount = parseInt(voteCountElement.getAttribute('data-vote-count'), 10) || 0;
         const updatedCount = currentCount + 1;

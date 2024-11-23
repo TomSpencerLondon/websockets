@@ -1,5 +1,7 @@
 package com.example.demo;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
@@ -26,18 +28,16 @@ public class ProposalController {
     @GetMapping("/proposal")
     public String proposalPage(Model model) {
         List<Proposal> proposalList = proposalService.proposals();
-        model.addAttribute("proposals", proposalList); // Pass the list of proposals to Thymeleaf
+        model.addAttribute("proposals", proposalList);
         return "proposal";
     }
 
-    // Handle sending proposals
     @MessageMapping("/sendProposal")
     @SendTo("/topic/proposals")
     public Proposal addProposal(Proposal proposal) {
         return proposalService.addProposal(proposal);
     }
 
-    // Handle voting on proposals
     @MessageMapping("/sendVote")
     @SendTo("/topic/votes")
     public Proposal handleVote(Vote vote) {

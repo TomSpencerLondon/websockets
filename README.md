@@ -118,3 +118,46 @@ We can then change the Proposal class voteCount to int to make the test fail.
 Another way to make the test pass would be to use synchronised keyword on ProposalService addVote.
 The project as a whole is a relatively interesting exploration of websockets, server client interaction
 and concurrency.
+
+### Example Race Condition:
+```bash
+
+12:03:46.074 [pool-1-thread-18] INFO com.example.demo.Proposal -- Before count: 33 After count: 34
+12:03:46.075 [pool-1-thread-56] INFO com.example.demo.Proposal -- Before count: 51 After count: 52
+12:03:46.075 [pool-1-thread-69] INFO com.example.demo.Proposal -- Before count: 18 After count: 19
+12:03:46.076 [pool-1-thread-73] INFO com.example.demo.Proposal -- Before count: 47 After count: 48
+12:03:46.075 [pool-1-thread-54] INFO com.example.demo.Proposal -- Before count: 35 After count: 36
+12:03:46.136 [pool-1-thread-86] INFO com.example.demo.Proposal -- Before count: 33 After count: 34
+```
+
+The Race condition means that the concurrency test fails with:
+```bash
+
+org.opentest4j.AssertionFailedError: Votes should be 1000 after concurrent voting ==> 
+Expected :1000
+Actual   :999
+<Click to see difference>
+
+
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:563)
+	at com.example.demo.ProposalServiceTest.testConcurrentVoting(ProposalServiceTest.java:44)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+
+
+```
+We save the output of the test to /Users/tspencer/Desktop/demo/spring-websockets-test.log using intellij config for the test.
+We can then use RaceConditionDetector to find the example Race Condition.
+
+This is the output of the RaceConditionDetector to find the line which had the race condition:
+```bash
+Race Conditions Detected: 1
+Race Condition for After count: 34
+12:03:46.074 [pool-1-thread-18] INFO com.example.demo.Proposal -- Before count: 33 After count: 34
+12:03:46.136 [pool-1-thread-86] INFO com.example.demo.Proposal -- Before count: 33 After count: 34
+```

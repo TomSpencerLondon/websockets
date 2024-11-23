@@ -22,27 +22,24 @@ public class ProposalServiceTest {
         proposalService.addProposal(new Proposal("User 1", "Proposal 1"));
     }
 
-    @RepeatedTest(1000)
+    @Test
     public void testConcurrentVoting() throws InterruptedException {
-        // Get the proposal to test
         Proposal proposal = proposalService.proposals().get(0);
 
-        // Increase the number of threads to create higher contention
         ExecutorService executorService = Executors.newFixedThreadPool(100);
 
-        // Simulate a high number of concurrent votes
         int numberOfVotes = 1000;
         Vote vote = new Vote();
         vote.setProposalId(proposal.getId());
         for (int i = 0; i < numberOfVotes; i++) {
-            executorService.submit(() -> proposalService.addVote(vote));
+            executorService.submit(() -> {
+                proposalService.addVote(vote);
+            });
         }
 
-        // Shutdown the executor and wait for all tasks to complete
         executorService.shutdown();
         executorService.awaitTermination(10, TimeUnit.SECONDS);
 
-        // Assert that the vote count matches the number of submitted votes
         assertEquals(numberOfVotes, proposal.getVoteCount(),
                 "Votes should be " + numberOfVotes + " after concurrent voting");
     }
