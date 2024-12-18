@@ -10,7 +10,7 @@ public class Proposal {
     private Long id;
     private String sender;
     private String content;
-    private int voteCount;
+    private AtomicInteger voteCount;
     private static final Logger logger = LoggerFactory.getLogger(Proposal.class);
 
 
@@ -20,7 +20,7 @@ public class Proposal {
     public Proposal(String sender, String content) {
         this.sender = sender;
         this.content = content;
-        this.voteCount = 0;
+        this.voteCount = new AtomicInteger(0);
     }
 
     // Getters and setters
@@ -42,15 +42,11 @@ public class Proposal {
 
     // Get the current vote count
     public int getVoteCount() {
-        return voteCount;
+        return voteCount.get();
     }
 
     // Increment the vote count in a thread-safe way
     public void incrementVoteCount() {
-        int before = voteCount;
-        voteCount++;
-        int after = voteCount;
-
-        logger.info("Before count: " + before + " After count: " + after);
+        voteCount.incrementAndGet();
     }
 }
